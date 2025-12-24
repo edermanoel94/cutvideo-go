@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 type Clip struct {
@@ -43,43 +42,47 @@ func main() {
 	}
 
 	if len(videos) == 0 {
-		log.Fatal(errors.New("no video to cut."))
+		log.Fatal(errors.New("no video to cut"))
 	}
 
 	ctx := context.Background()
 
 	for _, video := range videos {
 		for _, clip := range video.Clips {
+			// clipName := strings.ToLower(strings.ReplaceAll(clip.Name, " ", "_"))
+			// outputVideoFile := fmt.Sprintf("%s_%s.mp4", strings.ToLower(video.Title), clipName)
 
-			clipName := strings.ToLower(strings.ReplaceAll(clip.Name, " ", "_"))
-			outputVideoFile := fmt.Sprintf("%s_%s.mp4", strings.ToLower(video.Title), clipName)
-
-			if err := execFFMPEG(ctx, video.InputVideoPath, outputVideoFile, clip); err != nil {
+			if err := execFFMPEG(ctx, video.InputVideoPath, clip); err != nil {
 				log.Printf("Failed to execute ffmpeg: %s", err.Error())
+				break
 			}
 		}
 	}
 }
 
-func execFFMPEG(ctx context.Context, inputVideo, outputVideo string, clip Clip) error {
+func execFFMPEG(ctx context.Context, inputVideo string, clip Clip) error {
 	// ffmpeg -i .\IMG_9032.MOV -ss 00:09:06 -to 00:09:18 -c copy output.mp4
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-i", inputVideo,
-		"-ss", clip.StartTime, "-to", clip.EndTime,
-		"-c", "copy", outputVideo)
 
-	stdoutPipe, _ := cmd.StdoutPipe()
-	stderrPipe, _ := cmd.StderrPipe()
+	outputVideoFile := fmt.Sprintf("%s.mp4", clip.Name)
+
+	cmd := exec.CommandContext(ctx, "/usr/bin/ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+		"-i", inputVideo,
+		"-ss", clip.StartTime, "-to", clip.EndTime,
+		"-c", "copy", outputVideoFile)
+
+	// stdoutPipe, _ := cmd.StdoutPipe()
+	// stderrPipe, _ := cmd.StderrPipe()
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to start ffmpeg: %s", err.Error())
+		log.Printf("Failed to start ffmpeg: %s\n", err.Error())
 		return err
 	}
 
-	go streamLinesToLogger(stdoutPipe, logger)
-	go streamLinesToLogger(stderrPipe, logger)
+	// go streamLinesToLogger(stdoutPipe, logger)
+	// go streamLinesToLogger(stderrPipe, logger)
 
 	if err := cmd.Wait(); err != nil {
-		log.Printf("ffmpeg exited with error: %v\n", err)
+		log.Printf("ffmpeg exited with error: %s\n", err.Error())
 		return err
 	}
 
